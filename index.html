@@ -22,6 +22,12 @@
             font-weight: 700;
         }
 
+        #currentTimeTop {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+
         .input-box {
             display: inline-block;
             width: 120px;
@@ -79,13 +85,14 @@
             font-weight: 800;
             margin-top: 20px;
         }
-
     </style>
 </head>
 <body>
 
 <div class="container" id="setup">
     <h1>자격검정 종료시간</h1>
+
+    <div id="currentTimeTop">현재시간 : --시 --분 --초</div>
 
     <input id="hour" class="input-box" placeholder="시">
     <input id="minute" class="input-box" placeholder="분">
@@ -115,8 +122,15 @@
             return new Date(data.datetime);
         } catch (e) {
             console.log("KST API 오류 → 로컬시간 사용", e);
-            return new Date(); 
+            return new Date();
         }
+    }
+
+    async function updateCurrentTop() {
+        const now = await getKST();
+
+        document.getElementById("currentTimeTop").textContent =
+            `현재시간 : ${now.getHours()}시 ${now.getMinutes()}분 ${now.getSeconds()}초`;
     }
 
     function setTime() {
@@ -171,6 +185,9 @@
         document.getElementById("setup").style.display = "block";
         document.getElementById("timer").style.display = "none";
     }
+
+    setInterval(updateCurrentTop, 1000);
+    updateCurrentTop();
 </script>
 
 </body>
