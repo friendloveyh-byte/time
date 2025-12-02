@@ -1,181 +1,176 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>자격검정 종료시간</title>
-<style>
-    body {
-        margin: 0;
-        padding: 0;
-        background: #f5f5f5;
-        font-family: "Arial", sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        text-align: center;
-    }
+    <meta charset="UTF-8">
+    <title>자격검정 종료시간</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f2f2f2;
+            font-family: 'Pretendard', Arial, sans-serif;
+            text-align: center;
+        }
 
-    .container {
-        width: 100%;
-        max-width: 500px;
-    }
+        .container {
+            margin-top: 40px;
+        }
 
-    h1 {
-        font-size: 38px;
-        font-weight: 700;
-        margin-bottom: 30px;
-    }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 40px;
+            font-weight: 700;
+        }
 
-    .input-row {
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-        margin-bottom: 20px;
-    }
+        .input-box {
+            display: inline-block;
+            width: 120px;
+            height: 60px;
+            font-size: 28px;
+            text-align: center;
+            border-radius: 12px;
+            border: 2px solid #ccc;
+            margin: 0 10px;
+            background: #fff;
+        }
 
-    input {
-        width: 120px;
-        padding: 20px;
-        font-size: 26px;
-        border-radius: 10px;
-        border: 2px solid #ccc;
-        text-align: center;
-        outline: none;
-    }
+        button {
+            width: 180px;
+            height: 60px;
+            font-size: 28px;
+            border: none;
+            border-radius: 12px;
+            margin-top: 30px;
+            cursor: pointer;
+        }
 
-    button {
-        width: 200px;
-        padding: 18px;
-        font-size: 24px;
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        margin-top: 15px;
-    }
+        .set-btn {
+            background: #1ec64b;
+            color: white;
+        }
 
-    #setBtn {
-        background: #2ecc71;
-        color: white;
-    }
+        .reset-btn {
+            background: #d9534f;
+            color: white;
+            margin-top: 50px;
+        }
 
-    #resetBtn {
-        background: #e74c3c;
-        color: white;
-    }
+        #currentTime {
+            font-size: 46px;
+            font-weight: 700;
+            margin-top: 20px;
+        }
 
-    .current-time {
-        font-size: 32px;
-        font-weight: 700;
-        margin-top: 20px;
-    }
+        #endTime {
+            font-size: 28px;
+            color: gray;
+            margin-top: 10px;
+        }
 
-    .end-time {
-        font-size: 22px;
-        color: #555;
-        margin-top: 10px;
-    }
+        #remainLabel {
+            font-size: 42px;
+            margin-top: 50px;
+            font-weight: 600;
+        }
 
-    .remain-title {
-        font-size: 32px;
-        margin-top: 30px;
-        font-weight: 700;
-        color: #333;
-    }
+        #remainTime {
+            font-size: 72px;
+            color: red;
+            font-weight: 800;
+            margin-top: 20px;
+        }
 
-    .remain-time {
-        font-size: 50px;
-        font-weight: 900;
-        color: red;
-        margin-top: 10px;
-    }
-
-</style>
+    </style>
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="setup">
+    <h1>자격검정 종료시간</h1>
 
-    <!-- 초기 입력 화면 -->
-    <div id="inputSection">
-        <h1>자격검정 종료시간</h1>
+    <input id="hour" class="input-box" placeholder="시">
+    <input id="minute" class="input-box" placeholder="분">
 
-        <div class="input-row">
-            <input type="number" id="hour" placeholder="시">
-            <input type="number" id="minute" placeholder="분">
-        </div>
+    <br>
+    <button class="set-btn" onclick="setTime()">설정</button>
+</div>
 
-        <button id="setBtn" onclick="setTime()">설정</button>
-    </div>
+<div class="container" id="timer" style="display:none;">
+    <div id="currentTime"></div>
+    <div id="endTime"></div>
 
-    <!-- 결과 화면 -->
-    <div id="resultSection" style="display:none;">
-        <div class="current-time" id="nowTime"></div>
-        <div class="end-time" id="endTime"></div>
+    <div id="remainLabel">남은시간</div>
+    <div id="remainTime"></div>
 
-        <div class="remain-title">남은시간</div>
-        <div class="remain-time" id="remainTime"></div>
-
-        <button id="resetBtn" onclick="resetAll()">재설정</button>
-    </div>
-
+    <button class="reset-btn" onclick="resetTimer()">재설정</button>
 </div>
 
 <script>
-let targetHour = null;
-let targetMinute = null;
-let timerInterval = null;
+    let targetHour = null;
+    let targetMinute = null;
 
-function setTime() {
-    targetHour = Number(document.getElementById("hour").value);
-    targetMinute = Number(document.getElementById("minute").value);
-
-    if (isNaN(targetHour) || isNaN(targetMinute)) {
-        alert("시간과 분을 정확히 입력하세요.");
-        return;
+    async function getKST() {
+        try {
+            const res = await fetch("https://worldtimeapi.org/api/timezone/Asia/Seoul");
+            const data = await res.json();
+            return new Date(data.datetime);
+        } catch (e) {
+            console.log("KST API 오류 → 로컬시간 사용", e);
+            return new Date(); 
+        }
     }
 
-    document.getElementById("inputSection").style.display = "none";
-    document.getElementById("resultSection").style.display = "block";
+    function setTime() {
+        targetHour = parseInt(document.getElementById("hour").value);
+        targetMinute = parseInt(document.getElementById("minute").value);
 
-    updateClock();
-    timerInterval = setInterval(updateClock, 1000);
-}
+        if (isNaN(targetHour) || isNaN(targetMinute)) {
+            alert("시간을 정확히 입력하세요.");
+            return;
+        }
 
-function updateClock() {
-    let now = new Date();
-    let nowHour = now.getHours();
-    let nowMin = now.getMinutes();
-    let nowSec = now.getSeconds();
+        document.getElementById("setup").style.display = "none";
+        document.getElementById("timer").style.display = "block";
 
-    document.getElementById("nowTime").innerText =
-        `현재시간 : ${nowHour}시 ${nowMin}분 ${nowSec}초`;
+        updateTimer();
+        setInterval(updateTimer, 1000);
+    }
 
-    document.getElementById("endTime").innerText =
-        `(종료시간 : ${targetHour}시 ${targetMinute}분)`;
+    async function updateTimer() {
+        const now = await getKST();
 
-    let end = new Date();
-    end.setHours(targetHour);
-    end.setMinutes(targetMinute);
-    end.setSeconds(0);
+        const nowH = now.getHours();
+        const nowM = now.getMinutes();
+        const nowS = now.getSeconds();
 
-    let diff = end - now;
+        document.getElementById("currentTime").textContent =
+            `현재시간 : ${nowH}시 ${nowM}분 ${nowS}초`;
 
-    if (diff < 0) diff = 0;
+        document.getElementById("endTime").textContent =
+            `(종료시간 : ${targetHour}시 ${targetMinute}분)`;
 
-    let rh = Math.floor(diff / 1000 / 3600);
-    let rm = Math.floor((diff / 1000 % 3600) / 60);
-    let rs = Math.floor(diff / 1000 % 60);
+        let end = new Date(now);
+        end.setHours(targetHour);
+        end.setMinutes(targetMinute);
+        end.setSeconds(0);
 
-    document.getElementById("remainTime").innerText =
-        `${rh}시간 ${rm}분 ${rs}초`;
-}
+        if (end < now) {
+            end.setDate(end.getDate() + 1);
+        }
 
-function resetAll() {
-    clearInterval(timerInterval);
-    document.getElementById("resultSection").style.display = "none";
-    document.getElementById("inputSection").style.display = "block";
-}
+        let diff = Math.floor((end - now) / 1000);
+
+        let h = Math.floor(diff / 3600);
+        let m = Math.floor((diff % 3600) / 60);
+        let s = diff % 60;
+
+        document.getElementById("remainTime").textContent =
+            `${h}시간 ${m}분 ${s}초`;
+    }
+
+    function resetTimer() {
+        document.getElementById("setup").style.display = "block";
+        document.getElementById("timer").style.display = "none";
+    }
 </script>
 
 </body>
