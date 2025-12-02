@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Time</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: #f2f2f2;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: Arial, sans-serif;
+        color: #444;
+    }
+    .line {
+        font-size: 48px;
+        margin: 15px 0;
+    }
+    .label {
+        font-size: 20px;
+        color: #777;
+        margin-bottom: -10px;
+    }
+</style>
+</head>
+<body>
+
+<div class="label">현재 시간</div>
+<div class="line" id="now">--:--:--</div>
+
+<div class="label">남은 시간</div>
+<div class="line" id="remain">--:--:--</div>
+
+<script>
+    function targetTime() {
+        const t = new Date();
+        t.setHours(18, 0, 0, 0);
+        return t;
+    }
+
+    function update() {
+        const now = new Date();
+        const target = targetTime();
+
+        document.getElementById("now").innerText =
+            now.toLocaleTimeString('ko-KR', { hour12: false });
+
+        let diff = target - now;
+        if (diff < 0) diff = 0;
+
+        const h = String(Math.floor(diff / 1000 / 60 / 60)).padStart(2, '0');
+        const m = String(Math.floor(diff / 1000 / 60) % 60).padStart(2, '0');
+        const s = String(Math.floor(diff / 1000) % 60).padStart(2, '0');
+
+        document.getElementById("remain").innerText = `${h}:${m}:${s}`;
+    }
+
+    setInterval(update, 1000);
+    update();
+</script>
+
+</body>
+</html>
