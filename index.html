@@ -8,151 +8,173 @@
         margin: 0;
         padding: 0;
         background: #f5f5f5;
-        font-family: "Segoe UI", Arial, sans-serif;
+        font-family: "Arial", sans-serif;
         display: flex;
-        flex-direction: column;
         justify-content: center;
         align-items: center;
         height: 100vh;
         text-align: center;
     }
 
+    .container {
+        width: 100%;
+        max-width: 500px;
+    }
+
     h1 {
-        font-size: 42px;
+        font-size: 38px;
         font-weight: 700;
         margin-bottom: 30px;
     }
 
-    .row {
+    .input-row {
         display: flex;
-        gap: 10px;
+        justify-content: center;
+        gap: 15px;
         margin-bottom: 20px;
     }
 
     input {
-        width: 100px;
-        height: 60px;
+        width: 120px;
+        padding: 20px;
         font-size: 26px;
-        text-align: center;
+        border-radius: 10px;
         border: 2px solid #ccc;
-        border-radius: 12px;
+        text-align: center;
+        outline: none;
     }
 
     button {
-        background: #2ecc71;
+        width: 200px;
+        padding: 18px;
+        font-size: 24px;
         border: none;
-        padding: 15px 40px;
-        font-size: 22px;
-        color: #fff;
         border-radius: 12px;
         cursor: pointer;
-        margin-top: 10px;
+        margin-top: 15px;
+    }
+
+    #setBtn {
+        background: #2ecc71;
+        color: white;
     }
 
     #resetBtn {
         background: #e74c3c;
-        margin-top: 30px;
+        color: white;
     }
 
-    .time-display {
-        display: none;
-        flex-direction: column;
-        align-items: center;
+    .current-time {
+        font-size: 32px;
+        font-weight: 700;
+        margin-top: 20px;
     }
 
-    #nowTime {
-        font-size: 42px;
-        font-weight: bold;
-    }
-
-    #endTime {
-        font-size: 24px;
+    .end-time {
+        font-size: 22px;
         color: #555;
-        margin-top: 5px;
+        margin-top: 10px;
     }
 
-    #leftTime {
+    .remain-title {
+        font-size: 32px;
         margin-top: 30px;
-        font-size: 56px;
-        font-weight: 800;
-        color: red;
+        font-weight: 700;
+        color: #333;
     }
+
+    .remain-time {
+        font-size: 50px;
+        font-weight: 900;
+        color: red;
+        margin-top: 10px;
+    }
+
 </style>
 </head>
 <body>
 
-<div id="inputArea">
-    <h1>자격검정 종료시간</h1>
+<div class="container">
 
-    <div class="row">
-        <input id="hour" type="number" placeholder="시" min="0" max="23">
-        <input id="minute" type="number" placeholder="분" min="0" max="59">
+    <!-- 초기 입력 화면 -->
+    <div id="inputSection">
+        <h1>자격검정 종료시간</h1>
+
+        <div class="input-row">
+            <input type="number" id="hour" placeholder="시">
+            <input type="number" id="minute" placeholder="분">
+        </div>
+
+        <button id="setBtn" onclick="setTime()">설정</button>
     </div>
 
-    <button onclick="setTime()">설정</button>
-</div>
+    <!-- 결과 화면 -->
+    <div id="resultSection" style="display:none;">
+        <div class="current-time" id="nowTime"></div>
+        <div class="end-time" id="endTime"></div>
 
-<div id="displayArea" class="time-display">
-    <div id="nowTime"></div>
-    <div id="endTime"></div>
-    <div id="leftTime"></div>
-    <button id="resetBtn" onclick="resetAll()">재설정</button>
+        <div class="remain-title">남은시간</div>
+        <div class="remain-time" id="remainTime"></div>
+
+        <button id="resetBtn" onclick="resetAll()">재설정</button>
+    </div>
+
 </div>
 
 <script>
-let endHour = null;
-let endMinute = null;
+let targetHour = null;
+let targetMinute = null;
+let timerInterval = null;
 
 function setTime() {
-    endHour = document.getElementById("hour").value;
-    endMinute = document.getElementById("minute").value;
+    targetHour = Number(document.getElementById("hour").value);
+    targetMinute = Number(document.getElementById("minute").value);
 
-    if (endHour === "" || endMinute === "") {
-        alert("시와 분을 모두 입력하세요.");
+    if (isNaN(targetHour) || isNaN(targetMinute)) {
+        alert("시간과 분을 정확히 입력하세요.");
         return;
     }
 
-    document.getElementById("inputArea").style.display = "none";
-    document.getElementById("displayArea").style.display = "flex";
+    document.getElementById("inputSection").style.display = "none";
+    document.getElementById("resultSection").style.display = "block";
 
     updateClock();
-    setInterval(updateClock, 1000);
+    timerInterval = setInterval(updateClock, 1000);
 }
 
 function updateClock() {
-    const now = new Date();
-    const nowH = now.getHours();
-    const nowM = now.getMinutes();
-    const nowS = now.getSeconds();
+    let now = new Date();
+    let nowHour = now.getHours();
+    let nowMin = now.getMinutes();
+    let nowSec = now.getSeconds();
 
     document.getElementById("nowTime").innerText =
-        `현재시간 : ${nowH}시 ${nowM}분 ${nowS}초`;
+        `현재시간 : ${nowHour}시 ${nowMin}분 ${nowSec}초`;
 
     document.getElementById("endTime").innerText =
-        `(종료시간 : ${endHour}시 ${endMinute}분)`;
+        `(종료시간 : ${targetHour}시 ${targetMinute}분)`;
 
     let end = new Date();
-    end.setHours(endHour);
-    end.setMinutes(endMinute);
+    end.setHours(targetHour);
+    end.setMinutes(targetMinute);
     end.setSeconds(0);
 
-    let diff = (end - now) / 1000;
+    let diff = end - now;
 
-    if (diff < 0) {
-        document.getElementById("leftTime").innerText = "종료됨";
-        return;
-    }
+    if (diff < 0) diff = 0;
 
-    const h = Math.floor(diff / 3600);
-    const m = Math.floor((diff % 3600) / 60);
-    const s = Math.floor(diff % 60);
+    let rh = Math.floor(diff / 1000 / 3600);
+    let rm = Math.floor((diff / 1000 % 3600) / 60);
+    let rs = Math.floor(diff / 1000 % 60);
 
-    document.getElementById("leftTime").innerText =
-        `${h}시간 ${m}분 ${s}초`;
+    document.getElementById("remainTime").innerText =
+        `${rh}시간 ${rm}분 ${rs}초`;
 }
 
 function resetAll() {
-    location.reload();
+    clearInterval(timerInterval);
+    document.getElementById("resultSection").style.display = "none";
+    document.getElementById("inputSection").style.display = "block";
 }
 </script>
 
