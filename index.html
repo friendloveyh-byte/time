@@ -2,148 +2,177 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>자격검정 남은시간</title>
+<title>자격검정 종료시간</title>
 <style>
     body {
         margin: 0;
+        padding: 0;
         background: #f2f2f2;
-        font-family: "Arial", sans-serif;
+        font-family: Arial, sans-serif;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding-top: 40px;
-        color: #222;
+        justify-content: center;
+        height: 100vh;
+        text-align: center;
     }
+
     h1 {
-        font-size: 32px;
+        font-size: 42px;
         margin-bottom: 30px;
-        font-weight: 700;
+        font-weight: bold;
     }
-    .input-box {
+
+    /* 입력 영역 */
+    #setup-box {
         display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
+        flex-direction: column;
+        gap: 15px;
     }
+
     input {
-        width: 70px;
+        width: 120px;
+        padding: 12px;
         font-size: 26px;
-        padding: 7px;
+        border-radius: 10px;
+        border: 2px solid #ccc;
         text-align: center;
-        border: 1px solid #ccc;
-        border-radius: 8px;
     }
+
     button {
-        padding: 12px 25px;
-        font-size: 20px;
+        padding: 12px 30px;
+        font-size: 22px;
         border: none;
-        border-radius: 8px;
-        cursor: pointer;
+        border-radius: 10px;
         color: white;
+        background: #28a745;
     }
-    #setBtn { background: #2ecc71; }
-    #clearBtn { background: #e74c3c; margin-top: 15px; }
-    .time-box {
-        margin-top: 30px;
-        text-align: center;
+
+    /* 출력 영역 */
+    #result {
+        display: none;
+        margin-top: 20px;
+    }
+
+    #currentTime {
+        font-size: 48px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    #endTime {
         font-size: 28px;
-        font-weight: 700;
+        color: #444;
+        margin-bottom: 25px;
+    }
+
+    #remainTime {
+        font-size: 56px;
+        font-weight: bold;
+        color: red;
+        margin-bottom: 30px;
+    }
+
+    #resetBtn {
+        padding: 10px 25px;
+        font-size: 20px;
+        background: #d9534f;
+        border: none;
+        border-radius: 10px;
+        color: white;
     }
 </style>
 </head>
-
 <body>
-<h1>자격검정 남은시간</h1>
 
-<div class="input-box">
-    <input type="number" id="hourInput" placeholder="시" min="0" max="23">
-    <input type="number" id="minInput" placeholder="분" min="0" max="59">
+<h1 id="mainTitle">자격검정 종료시간</h1>
+
+<div id="setup-box">
+    <input type="number" id="hour" placeholder="시" min="0" max="23">
+    <input type="number" id="minute" placeholder="분" min="0" max="59">
+    <button onclick="setTime()">설정</button>
 </div>
 
-<button id="setBtn">설정</button>
-
-<div class="time-box" id="resultBox" style="display:none;">
-    <div id="nowTime"></div>
+<div id="result">
+    <div id="currentTime"></div>
     <div id="endTime"></div>
-    <div id="remain"></div>
-    <button id="clearBtn">지우기</button>
+    <div id="remainTime"></div>
+    <button id="resetBtn" onclick="resetTimer()">재설정</button>
 </div>
 
 <script>
-function updateClock() {
-    const now = new Date();
-    document.getElementById("nowTime").innerText =
-        "현재 시간 : " +
-        now.toLocaleTimeString("ko-KR", { hour12: false });
-}
+    function setTime() {
+        const hour = document.getElementById("hour").value;
+        const minute = document.getElementById("minute").value;
 
-setInterval(updateClock, 1000);
+        if (hour === "" || minute === "") {
+            alert("시와 분을 모두 입력하세요!");
+            return;
+        }
 
-document.getElementById("setBtn").onclick = function () {
-    const h = document.getElementById("hourInput").value;
-    const m = document.getElementById("minInput").value;
-
-    if (h === "" || m === "") {
-        alert("종료 시간을 입력하세요 (시/분)");
-        return;
-    }
-
-    const now = new Date();
-    const end = new Date();
-    end.setHours(h);
-    end.setMinutes(m);
-    end.setSeconds(0);
-
-    if (end < now) {
-        alert("이미 지난 시간입니다. 다시 입력하세요.");
-        return;
-    }
-
-    // 저장
-    localStorage.setItem("endHour", h);
-    localStorage.setItem("endMin", m);
-
-    showRemaining();
-    document.getElementById("resultBox").style.display = "block";
-};
-
-function showRemaining() {
-    const h = localStorage.getItem("endHour");
-    const m = localStorage.getItem("endMin");
-
-    if (!h || !m) return;
-
-    document.getElementById("endTime").innerHTML =
-        "종료 시간 : " + h + "시 " + m + "분";
-
-    function calc() {
         const now = new Date();
         const end = new Date();
-        end.setHours(h);
-        end.setMinutes(m);
+        end.setHours(hour);
+        end.setMinutes(minute);
         end.setSeconds(0);
 
-        let diff = (end - now) / 1000;
-        if (diff < 0) diff = 0;
+        localStorage.setItem("endHour", hour);
+        localStorage.setItem("endMinute", minute);
 
-        const hh = Math.floor(diff / 3600);
-        const mm = Math.floor((diff % 3600) / 60);
-        const ss = Math.floor(diff % 60);
+        document.getElementById("setup-box").style.display = "none";
+        document.getElementById("mainTitle").style.display = "none";
+        document.getElementById("result").style.display = "block";
 
-        document.getElementById("remain").innerHTML =
-            `남은 시간 : ${hh}시간 ${mm}분 ${ss}초`;
+        updateClock();
+        setInterval(updateClock, 1000);
     }
 
-    calc();
-    setInterval(calc, 1000);
-}
+    function updateClock() {
+        const endHour = localStorage.getItem("endHour");
+        const endMinute = localStorage.getItem("endMinute");
 
-document.getElementById("clearBtn").onclick = function () {
-    localStorage.removeItem("endHour");
-    localStorage.removeItem("endMin");
-    document.getElementById("resultBox").style.display = "none";
-};
+        if (!endHour || !endMinute) return;
 
-showRemaining();
+        const now = new Date();
+        const end = new Date();
+        end.setHours(endHour);
+        end.setMinutes(endMinute);
+        end.setSeconds(0);
+
+        document.getElementById("currentTime").innerText =
+            `현재시간 : ${now.getHours()}시 ${now.getMinutes()}분 ${now.getSeconds()}초`;
+
+        document.getElementById("endTime").innerText =
+            `(종료시간 : ${endHour}시 ${endMinute}분)`;
+
+        let diff = Math.floor((end - now) / 1000);
+
+        if (diff < 0) diff = 0;
+
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
+
+        document.getElementById("remainTime").innerText =
+            `${h}시간 ${m}분 ${s}초`;
+    }
+
+    function resetTimer() {
+        localStorage.removeItem("endHour");
+        localStorage.removeItem("endMinute");
+        location.reload();
+    }
+
+    // 자동 로드
+    window.onload = function () {
+        if (localStorage.getItem("endHour")) {
+            document.getElementById("setup-box").style.display = "none";
+            document.getElementById("mainTitle").style.display = "none";
+            document.getElementById("result").style.display = "block";
+            setInterval(updateClock, 1000);
+            updateClock();
+        }
+    };
 </script>
 
 </body>
