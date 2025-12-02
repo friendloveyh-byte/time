@@ -8,8 +8,8 @@
         body {
             margin: 0;
             padding: 0;
-            background: #f2f2f2;
-            font-family: 'Pretendard', Arial, sans-serif;
+            background: #efefef;
+            font-family: Arial, sans-serif;
             text-align: center;
         }
 
@@ -19,38 +19,30 @@
 
         h1 {
             font-size: 48px;
-            margin-bottom: 40px;
             font-weight: 700;
-        }
-
-        /* 설정 화면 현재 시간 */
-        #currentTimeTop {
-            font-size: 36px;
-            font-weight: 700;
-            margin-top: 40px;
             margin-bottom: 40px;
         }
 
+        /* 입력 박스 */
         .input-box {
-            display: inline-block;
-            width: 120px;
-            height: 60px;
-            font-size: 28px;
+            width: 130px;
+            height: 65px;
+            font-size: 32px;
             text-align: center;
             border-radius: 12px;
             border: 2px solid #ccc;
             margin: 0 10px;
-            background: #fff;
+            background: white;
         }
 
         button {
-            width: 200px;
-            height: 65px;
-            font-size: 28px;
+            width: 220px;
+            height: 70px;
+            font-size: 32px;
             border: none;
-            border-radius: 12px;
-            margin-top: 30px;
+            border-radius: 14px;
             cursor: pointer;
+            margin-top: 30px;
         }
 
         .set-btn {
@@ -61,48 +53,52 @@
         .reset-btn {
             background: #d9534f;
             color: white;
-            margin-top: 40px;
+            margin-top: 50px;
         }
 
         /* 타이머 화면 */
         #currentTime {
-            font-size: 46px;
+            font-size: 48px;
             font-weight: 700;
-            margin-top: 20px;
+            margin-top: 40px;
         }
 
         #endTime {
-            font-size: 30px;
+            font-size: 28px;
             color: gray;
             margin-top: 10px;
         }
 
-        /* 남은시간 박스 전체 */
-        #remainWrapper {
+        /* 남은시간 박스 */
+        #remainGroup {
             display: inline-block;
-            padding: 30px 50px;
-
-            border: 4px solid red;
-            border-radius: 25px;
-            background: #f2f2f2;
             margin-top: 60px;
+            padding: 35px 60px;
+            border: 4px solid red;
+            border-radius: 35px;
+            background: #efefef;
         }
 
-        /* 남은시간 글자 */
         #remainLabel {
             font-size: 42px;
-            margin-bottom: 10px;
-            font-weight: 700;
             color: red;
+            font-weight: 800;
         }
 
-        /* 남은시간 숫자 */
         #remainTime {
-            font-size: 72px;
+            font-size: 80px;
             font-weight: 800;
             color: red;
+            margin-top: 20px;
+            display: block;
         }
 
+        /* 설정 화면 현재시간 */
+        #setupNow {
+            font-size: 36px;
+            margin-top: 50px;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -117,7 +113,7 @@
     <br>
     <button class="set-btn" onclick="setTime()">설정</button>
 
-    <div id="currentTimeTop">현재시간 : --시 --분 --초</div>
+    <div id="setupNow">현재시간 : --시 --분 --초</div>
 </div>
 
 <!-- 타이머 화면 -->
@@ -125,9 +121,9 @@
     <div id="currentTime"></div>
     <div id="endTime"></div>
 
-    <div id="remainWrapper">
+    <div id="remainGroup">
         <div id="remainLabel">남은시간</div>
-        <div id="remainTime"></div>
+        <span id="remainTime">0시간 0분 0초</span>
     </div>
 
     <br>
@@ -138,11 +134,19 @@
     let targetHour = null;
     let targetMinute = null;
 
-    function updateLocalTimeTop() {
-        const now = new Date();
-        document.getElementById("currentTimeTop").textContent =
+    /* 🚀 방법 B: 로컬 PC 시간을 사용 → 딜레이 없음 */
+    function getKST() {
+        return new Date();
+    }
+
+    function updateSetupClock() {
+        let now = getKST();
+        document.getElementById("setupNow").textContent =
             `현재시간 : ${now.getHours()}시 ${now.getMinutes()}분 ${now.getSeconds()}초`;
     }
+
+    setInterval(updateSetupClock, 1000);
+    updateSetupClock();
 
     function setTime() {
         targetHour = parseInt(document.getElementById("hour").value);
@@ -161,11 +165,11 @@
     }
 
     function updateTimer() {
-        const now = new Date();
+        let now = getKST();
 
-        const nowH = now.getHours();
-        const nowM = now.getMinutes();
-        const nowS = now.getSeconds();
+        let nowH = now.getHours();
+        let nowM = now.getMinutes();
+        let nowS = now.getSeconds();
 
         document.getElementById("currentTime").textContent =
             `현재시간 : ${nowH}시 ${nowM}분 ${nowS}초`;
@@ -173,7 +177,7 @@
         document.getElementById("endTime").textContent =
             `(종료시간 : ${targetHour}시 ${targetMinute}분)`;
 
-        let end = new Date();
+        let end = new Date(now);
         end.setHours(targetHour);
         end.setMinutes(targetMinute);
         end.setSeconds(0);
@@ -183,8 +187,20 @@
         }
 
         let diff = Math.floor((end - now) / 1000);
+
         let h = Math.floor(diff / 3600);
         let m = Math.floor((diff % 3600) / 60);
         let s = diff % 60;
 
-        docu
+        document.getElementById("remainTime").textContent =
+            `${h}시간 ${m}분 ${s}초`;
+    }
+
+    function resetTimer() {
+        document.getElementById("timer").style.display = "none";
+        document.getElementById("setup").style.display = "block";
+    }
+</script>
+
+</body>
+</html>
