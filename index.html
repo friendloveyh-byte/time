@@ -1,119 +1,137 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>자격검정 남은시간</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<style>
-    body {
-        margin: 0;
-        padding: 0;
-        font-family: Arial, sans-serif;
-        background: #f2f2f2;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: center;
-        padding-top: 40px;
-    }
-
-    h1 {
-        font-size: 36px;
-        margin-bottom: 20px;
-        color: #222;
-    }
-
-    #timerBox {
-        font-size: 60px;
-        font-weight: bold;
-        margin-top: 20px;
-        color: #333;
-    }
-
-    .btn {
-        padding: 12px 20px;
-        margin: 10px;
-        font-size: 18px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        background: #4CAF50;
-        color: white;
-    }
-
-    .btn-red {
-        background: #d9534f;
-    }
-
-    .input-section {
-        margin-top: 20px;
-        text-align: center;
-    }
-
-    input {
-        padding: 12px;
-        font-size: 18px;
-        border-radius: 8px;
-        border: 1px solid #999;
-        width: 250px;
-    }
-</style>
-</head>
-
-<body>
-
-<h1>자격검정 남은시간</h1>
-
-<div class="input-section">
-    <input type="datetime-local" id="targetTime">
-    <button class="btn" onclick="startTimer()">설정</button>
-</div>
-
-<div id="timerBox">남은시간이 없습니다.</div>
-
-<button class="btn-red" onclick="clearTimer()">지우기</button>
-
-<script>
-let timerInterval = null;
-
-function startTimer() {
-    const input = document.getElementById("targetTime").value;
-    if (!input) {
-        alert("날짜와 시간을 선택하세요!");
-        return;
-    }
-
-    const targetDate = new Date(input).getTime();
-
-    if (timerInterval) clearInterval(timerInterval);
-
-    timerInterval = setInterval(() => {
-        const now = new Date().getTime();
-        const gap = targetDate - now;
-
-        if (gap <= 0) {
-            document.getElementById("timerBox").innerHTML = "시간 종료!";
-            clearInterval(timerInterval);
-            return;
+    <meta charset="UTF-8">
+    <title>자격검정 남은시간</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f2f2f2;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
         }
 
-        const days = Math.floor(gap / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((gap % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((gap % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((gap % (1000 * 60)) / 1000);
+        h1 {
+            font-size: 42px;
+            margin-bottom: 30px;
+            color: #222;
+        }
 
-        document.getElementById("timerBox").innerHTML =
-            `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
-    }, 1000);
-}
+        #setup, #display {
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+        }
 
-function clearTimer() {
-    document.getElementById("timerBox").innerHTML = "남은시간이 없습니다.";
-    if (timerInterval) clearInterval(timerInterval);
-}
-</script>
+        input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: 1px solid #aaa;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #setBtn {
+            background: #4CAF50;
+            color: white;
+            width: 100%;
+        }
+
+        #removeBtn {
+            background: #d9534f;
+            color: white;
+            font-size: 14px;
+            padding: 8px 12px;
+            margin-top: 20px;
+        }
+
+        .big {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 15px 0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 설정 화면 -->
+    <div id="setup">
+        <h1>자격검정 남은시간</h1>
+        <input type="time" id="targetTime">
+        <button id="setBtn">설정</button>
+    </div>
+
+    <!-- 표시 화면 -->
+    <div id="display" style="display:none;">
+        <div class="big" id="nowTime"></div>
+        <div class="big" id="remainTime"></div>
+        <button id="removeBtn">지우기</button>
+    </div>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            document.getElementById("nowTime").textContent =
+                now.toLocaleTimeString('ko-KR', { hour12: false });
+
+            const target = localStorage.getItem("targetTime");
+            if (!target) return;
+
+            const [h, m] = target.split(":").map(Number);
+            const targetDate = new Date();
+            targetDate.setHours(h, m, 0, 0);
+
+            let diff = targetDate - now;
+            if (diff < 0) diff = 0;
+
+            const hh = String(Math.floor(diff / 3600000)).padStart(2, "0");
+            const mm = String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0");
+            const ss = String(Math.floor((diff % 60000) / 1000)).padStart(2, "0");
+
+            document.getElementById("remainTime").textContent =
+                `${hh}시간 ${mm}분 ${ss}초`;
+        }
+
+        document.getElementById("setBtn").onclick = () => {
+            const t = document.getElementById("targetTime").value;
+            if (!t) {
+                alert("시간을 입력하세요.");
+                return;
+            }
+            localStorage.setItem("targetTime", t);
+            document.getElementById("setup").style.display = "none";
+            document.getElementById("display").style.display = "block";
+        };
+
+        document.getElementById("removeBtn").onclick = () => {
+            localStorage.removeItem("targetTime");
+            document.getElementById("display").style.display = "none";
+            document.getElementById("setup").style.display = "block";
+        };
+
+        // 새로고침해도 유지
+        if (localStorage.getItem("targetTime")) {
+            document.getElementById("setup").style.display = "none";
+            document.getElementById("display").style.display = "block";
+        }
+
+        setInterval(updateClock, 1000);
+    </script>
 
 </body>
 </html>
