@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>자격검정 종료시간</title>
+
     <style>
         body {
             margin: 0;
@@ -22,12 +23,12 @@
             font-weight: 700;
         }
 
-        /* 설정 화면 현재 시간 (더 크게) */
+        /* 설정 화면 현재 시간 */
         #currentTimeTop {
-            font-size: 40px;
+            font-size: 36px;
             font-weight: 700;
-            margin-top: 35px;
-            margin-bottom: 20px;
+            margin-top: 40px;
+            margin-bottom: 40px;
         }
 
         .input-box {
@@ -43,8 +44,8 @@
         }
 
         button {
-            width: 180px;
-            height: 60px;
+            width: 200px;
+            height: 65px;
             font-size: 28px;
             border: none;
             border-radius: 12px;
@@ -60,7 +61,7 @@
         .reset-btn {
             background: #d9534f;
             color: white;
-            margin-top: 50px;
+            margin-top: 40px;
         }
 
         /* 타이머 화면 */
@@ -71,33 +72,37 @@
         }
 
         #endTime {
-            font-size: 28px;
+            font-size: 30px;
             color: gray;
             margin-top: 10px;
         }
 
-        /* 남은시간 라벨 */
+        /* 남은시간 박스 전체 */
+        #remainWrapper {
+            display: inline-block;
+            padding: 30px 50px;
+
+            border: 4px solid red;
+            border-radius: 25px;
+            background: #f2f2f2;
+            margin-top: 60px;
+        }
+
+        /* 남은시간 글자 */
         #remainLabel {
             font-size: 42px;
-            margin-top: 60px;
+            margin-bottom: 10px;
             font-weight: 700;
             color: red;
         }
 
-        /* 남은시간 박스 */
-        #remainBox {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 25px 45px;
-
-            border: 4px solid red;
-            border-radius: 25px;
-            background: white;
-
+        /* 남은시간 숫자 */
+        #remainTime {
             font-size: 72px;
             font-weight: 800;
             color: red;
         }
+
     </style>
 </head>
 <body>
@@ -106,14 +111,12 @@
 <div class="container" id="setup">
     <h1>자격검정 종료시간</h1>
 
-    <!-- 시/분 입력 -->
     <input id="hour" class="input-box" placeholder="시">
     <input id="minute" class="input-box" placeholder="분">
 
     <br>
     <button class="set-btn" onclick="setTime()">설정</button>
 
-    <!-- 현재시간 (아래로 이동됨) -->
     <div id="currentTimeTop">현재시간 : --시 --분 --초</div>
 </div>
 
@@ -122,9 +125,12 @@
     <div id="currentTime"></div>
     <div id="endTime"></div>
 
-    <div id="remainLabel">남은시간</div>
-    <div id="remainBox"><span id="remainTime"></span></div>
+    <div id="remainWrapper">
+        <div id="remainLabel">남은시간</div>
+        <div id="remainTime"></div>
+    </div>
 
+    <br>
     <button class="reset-btn" onclick="resetTimer()">재설정</button>
 </div>
 
@@ -132,20 +138,8 @@
     let targetHour = null;
     let targetMinute = null;
 
-    async function getKST() {
-        try {
-            const res = await fetch("https://worldtimeapi.org/api/timezone/Asia/Seoul");
-            const data = await res.json();
-            return new Date(data.datetime);
-        } catch (e) {
-            console.log("KST API 오류 → 로컬시간 사용", e);
-            return new Date();
-        }
-    }
-
-    async function updateCurrentTop() {
-        const now = await getKST();
-
+    function updateLocalTimeTop() {
+        const now = new Date();
         document.getElementById("currentTimeTop").textContent =
             `현재시간 : ${now.getHours()}시 ${now.getMinutes()}분 ${now.getSeconds()}초`;
     }
@@ -166,8 +160,8 @@
         setInterval(updateTimer, 1000);
     }
 
-    async function updateTimer() {
-        const now = await getKST();
+    function updateTimer() {
+        const now = new Date();
 
         const nowH = now.getHours();
         const nowM = now.getMinutes();
@@ -179,7 +173,7 @@
         document.getElementById("endTime").textContent =
             `(종료시간 : ${targetHour}시 ${targetMinute}분)`;
 
-        let end = new Date(now);
+        let end = new Date();
         end.setHours(targetHour);
         end.setMinutes(targetMinute);
         end.setSeconds(0);
@@ -189,23 +183,8 @@
         }
 
         let diff = Math.floor((end - now) / 1000);
-
         let h = Math.floor(diff / 3600);
         let m = Math.floor((diff % 3600) / 60);
         let s = diff % 60;
 
-        document.getElementById("remainTime").textContent =
-            `${h}시간 ${m}분 ${s}초`;
-    }
-
-    function resetTimer() {
-        document.getElementById("setup").style.display = "block";
-        document.getElementById("timer").style.display = "none";
-    }
-
-    setInterval(updateCurrentTop, 1000);
-    updateCurrentTop();
-</script>
-
-</body>
-</html>
+        docu
