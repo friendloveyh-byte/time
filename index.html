@@ -3,64 +3,116 @@
 <head>
 <meta charset="UTF-8">
 <title>자격검정 남은시간</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
     body {
         margin: 0;
         padding: 0;
+        font-family: Arial, sans-serif;
         background: #f2f2f2;
+        height: 100vh;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: center;
-        height: 100vh;
-        font-family: Arial, sans-serif;
-        color: #444;
+        padding-top: 40px;
     }
-    .line {
-        font-size: 48px;
-        margin: 15px 0;
+
+    h1 {
+        font-size: 36px;
+        margin-bottom: 20px;
+        color: #222;
     }
-    .label {
-        font-size: 20px;
-        color: #777;
-        margin-bottom: -10px;
+
+    #timerBox {
+        font-size: 60px;
+        font-weight: bold;
+        margin-top: 20px;
+        color: #333;
+    }
+
+    .btn {
+        padding: 12px 20px;
+        margin: 10px;
+        font-size: 18px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #4CAF50;
+        color: white;
+    }
+
+    .btn-red {
+        background: #d9534f;
+    }
+
+    .input-section {
+        margin-top: 20px;
+        text-align: center;
+    }
+
+    input {
+        padding: 12px;
+        font-size: 18px;
+        border-radius: 8px;
+        border: 1px solid #999;
+        width: 250px;
     }
 </style>
 </head>
+
 <body>
 
-<div class="label">현재 시간</div>
-<div class="line" id="now">--:--:--</div>
+<h1>자격검정 남은시간</h1>
 
-<div class="label">남은 시간</div>
-<div class="line" id="remain">--:--:--</div>
+<div class="input-section">
+    <input type="datetime-local" id="targetTime">
+    <button class="btn" onclick="startTimer()">설정</button>
+</div>
+
+<div id="timerBox">남은시간이 없습니다.</div>
+
+<button class="btn-red" onclick="clearTimer()">지우기</button>
 
 <script>
-    function targetTime() {
-        const t = new Date();
-        t.setHours(18, 0, 0, 0);
-        return t;
+let timerInterval = null;
+
+function startTimer() {
+    const input = document.getElementById("targetTime").value;
+    if (!input) {
+        alert("날짜와 시간을 선택하세요!");
+        return;
     }
 
-    function update() {
-        const now = new Date();
-        const target = targetTime();
+    const targetDate = new Date(input).getTime();
 
-        document.getElementById("now").innerText =
-            now.toLocaleTimeString('ko-KR', { hour12: false });
+    if (timerInterval) clearInterval(timerInterval);
 
-        let diff = target - now;
-        if (diff < 0) diff = 0;
+    timerInterval = setInterval(() => {
+        const now = new Date().getTime();
+        const gap = targetDate - now;
 
-        const h = String(Math.floor(diff / 1000 / 60 / 60)).padStart(2, '0');
-        const m = String(Math.floor(diff / 1000 / 60) % 60).padStart(2, '0');
-        const s = String(Math.floor(diff / 1000) % 60).padStart(2, '0');
+        if (gap <= 0) {
+            document.getElementById("timerBox").innerHTML = "시간 종료!";
+            clearInterval(timerInterval);
+            return;
+        }
 
-        document.getElementById("remain").innerText = `${h}:${m}:${s}`;
-    }
+        const days = Math.floor(gap / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((gap % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((gap % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((gap % (1000 * 60)) / 1000);
 
-    setInterval(update, 1000);
-    update();
+        document.getElementById("timerBox").innerHTML =
+            `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
+    }, 1000);
+}
+
+function clearTimer() {
+    document.getElementById("timerBox").innerHTML = "남은시간이 없습니다.";
+    if (timerInterval) clearInterval(timerInterval);
+}
 </script>
 
 </body>
