@@ -2,213 +2,33 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>자격검정 종료시간</title>
-
+    <title>스마트팜 모니터링</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: #efefef;
-            font-family: Arial, sans-serif;
-            text-align: center;
-        }
-
-        .container {
-            margin-top: 40px;
-        }
-
-        h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 40px;
-        }
-
-        /* 입력 박스 */
-        .input-box {
-            width: 130px;
-            height: 65px;
-            font-size: 32px;
-            text-align: center;
-            border-radius: 12px;
-            border: 2px solid #ccc;
-            margin: 0 10px;
-            background: white;
-        }
-
-        button {
-            width: 220px;
-            height: 70px;
-            font-size: 32px;
-            border: none;
-            border-radius: 14px;
-            cursor: pointer;
-            margin-top: 30px;
-        }
-
-        .set-btn {
-            background: #1ec64b;
-            color: white;
-        }
-
-        .reset-btn {
-            background: #d9534f;
-            color: white;
-            margin-top: 50px;
-        }
-
-        /* 타이머 화면 */
-        #currentTime {
-            font-size: 48px;
-            font-weight: 700;
-            margin-top: 40px;
-        }
-
-        #endTime {
-            font-size: 28px;
-            color: gray;
-            margin-top: 10px;
-        }
-
-        /* 남은시간 전체 박스 */
-        #remainGroup {
-            display: inline-block;
-            margin-top: 60px;
-
-            padding: 35px 0;
-
-            width: 80%;              /* 🔥 고정폭 */
-            max-width: 900px;        /* 데스크탑에서도 일정 폭 유지 */
-
-            border: 4px solid red;
-            border-radius: 35px;
-            background: #efefef;
-        }
-
-        /* 남은시간 텍스트 */
-        #remainLabel {
-            font-size: 50px;         /* 🔥 조금 더 크게 */
-            color: red;
-            font-weight: 800;
-            letter-spacing: 12px;    /* 🔥 남 은 시 간 간격 띄우기 */
-        }
-
-        /* 남은시간 숫자 */
-        #remainTime {
-            font-size: 80px;
-            font-weight: 800;
-            color: red;
-            margin-top: 20px;
-            display: block;
-        }
-
-        /* 설정 화면 현재시간 */
-        #setupNow {
-            font-size: 36px;
-            margin-top: 50px;
-            font-weight: 700;
-        }
+        body { font-family: 'Malgun Gothic', sans-serif; text-align: center; background-color: #f4f4f9; margin-top: 100px; }
+        h1 { color: #333; font-size: 2.5em; }
+        .card-container { display: flex; justify-content: center; gap: 20px; margin-top: 40px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 200px; }
+        .card h3 { margin: 0; color: #666; font-size: 1.2em; }
+        .card p { font-size: 2em; font-weight: bold; color: #2ecc71; margin: 15px 0 0 0; }
+        .status { margin-top: 30px; font-size: 1.2em; font-weight: bold; color: #3498db; }
     </style>
 </head>
 <body>
 
-<!-- 설정 화면 -->
-<div class="container" id="setup">
-    <h1>자격검정 종료시간</h1>
-
-    <input id="hour" class="input-box" placeholder="시">
-    <input id="minute" class="input-box" placeholder="분">
-
-    <br>
-    <button class="set-btn" onclick="setTime()">설정</button>
-
-    <div id="setupNow">현재시간 : --시 --분 --초</div>
-</div>
-
-<!-- 타이머 화면 -->
-<div class="container" id="timer" style="display:none;">
-    <div id="currentTime"></div>
-    <div id="endTime"></div>
-
-    <div id="remainGroup">
-        <div id="remainLabel">남 은 시 간</div>
-        <span id="remainTime">0시간 0분 0초</span>
+    <h1>🌱 스마트팜 실시간 현황</h1>
+    
+    <div class="card-container">
+        <div class="card">
+            <h3>현재 온도</h3>
+            <p id="temp">-- °C</p>
+        </div>
+        <div class="card">
+            <h3>현재 습도</h3>
+            <p id="humi">-- %</p>
+        </div>
     </div>
 
-    <br>
-    <button class="reset-btn" onclick="resetTimer()">재설정</button>
-</div>
-
-<script>
-    let targetHour = null;
-    let targetMinute = null;
-
-    /* 🚀 방법 B: 로컬 시간 사용 → 딜레이 없음 */
-    function getKST() {
-        return new Date();
-    }
-
-    function updateSetupClock() {
-        let now = getKST();
-        document.getElementById("setupNow").textContent =
-            `현재시간 : ${now.getHours()}시 ${now.getMinutes()}분 ${now.getSeconds()}초`;
-    }
-
-    setInterval(updateSetupClock, 1000);
-    updateSetupClock();
-
-    function setTime() {
-        targetHour = parseInt(document.getElementById("hour").value);
-        targetMinute = parseInt(document.getElementById("minute").value);
-
-        if (isNaN(targetHour) || isNaN(targetMinute)) {
-            alert("시간을 정확히 입력하세요.");
-            return;
-        }
-
-        document.getElementById("setup").style.display = "none";
-        document.getElementById("timer").style.display = "block";
-
-        updateTimer();
-        setInterval(updateTimer, 1000);
-    }
-
-    function updateTimer() {
-        let now = getKST();
-
-        let nowH = now.getHours();
-        let nowM = now.getMinutes();
-        let nowS = now.getSeconds();
-
-        document.getElementById("currentTime").textContent =
-            `현재시간 : ${nowH}시 ${nowM}분 ${nowS}초`;
-
-        document.getElementById("endTime").textContent =
-            `(종료시간 : ${targetHour}시 ${targetMinute}분)`;
-
-        let end = new Date(now);
-        end.setHours(targetHour);
-        end.setMinutes(targetMinute);
-        end.setSeconds(0);
-
-        if (end < now) {
-            end.setDate(end.getDate() + 1);
-        }
-
-        let diff = Math.floor((end - now) / 1000);
-
-        let h = Math.floor(diff / 3600);
-        let m = Math.floor((diff % 3600) / 60);
-        let s = diff % 60;
-
-        document.getElementById("remainTime").textContent =
-            `${h}시간 ${m}분 ${s}초`;
-    }
-
-    function resetTimer() {
-        document.getElementById("timer").style.display = "none";
-        document.getElementById("setup").style.display = "block";
-    }
-</script>
+    <div class="status">통신 상태: <span id="conn-status">연결 대기 중...</span></div>
 
 </body>
 </html>
