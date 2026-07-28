@@ -23,7 +23,7 @@
         .history-btn { background-color: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; width: 100%; margin-top: 10px; transition: background 0.2s; }
         .history-btn:hover { background-color: #5a6268; }
         
-        .history-container { display: none; margin-top: 15px; text-align: left; background: #fff; border: 1px solid #ddd; border-radius: 8px; max-height: 150px; overflow-y: auto; padding: 10px; font-size: 12px; }
+        .history-container { display: none; margin-top: 15px; text-align: left; background: #fff; border: 1px solid #ddd; border-radius: 8px; max-height: 180px; overflow-y: auto; padding: 10px; font-size: 12px; }
         .history-item { padding: 6px 0; border-bottom: 1px solid #eee; }
         .history-item:last-child { border-bottom: none; }
     </style>
@@ -45,12 +45,12 @@
         </div>
 
         <div class="info-group">
-            <div class="info-label">연결 / 끊김 시각</div>
+            <div class="info-label">최근 상태 변경 시각</div>
             <div id="timeVal" class="info-value" style="color: #495057; font-size: 13px;">-</div>
         </div>
 
         <!-- 이력창 토글 버튼 -->
-        <button class="history-btn" onclick="toggleHistory()">📂 연결/끊김 이력 보기</button>
+        <button class="history-btn" onclick="toggleHistory()">📂 연결/끊김 이력 보기 (누적)</button>
 
         <!-- 이력 표시 영역 -->
         <div id="historyBox" class="history-container">
@@ -77,47 +77,73 @@
         const historyBox = document.getElementById("historyBox");
 
         let historyList = [];
-        let lastState = false; // 이전 연결 상태 추적용
+        let isOnline = false;
+        
+        let lastHeartbeatValue = null;
+        let lastHeartbeatTime = Date.now();
+        let currentSSIDName = "-";
 
-        // 파이어베이스 데이터 실시간 감시
-        db.ref("smartfarm/connection").on("value", (snapshot) => {
-            const data = snapshot.val();
-            const nowTime = new Date().toLocaleString('ko-KR');
+        // 1. 와이파이 SSID 정보 가져오기
+        db.ref("smartfarm/connection/wifi_ssid").on("value", (snapshot) => {
+            currentSSIDName = snapshot.val() || "-";
+            ssidVal.innerText = currentSSIDName;
+        });
 
-            if (data && data.wifi_ssid) {
-                // 온라인 상태
-                ssidVal.innerText = data.wifi_ssid;
-                timeVal.innerText = "🟢 연결된 시각: " + (data.connected_time || nowTime);
-                wifiStatusText.innerText = "온라인 (정상 작동)";
-                wifiStatusText.style.color = "#28a745";
-                blinkDot.classList.add("active");
+        // 2. 하트비트 카운터 감시 (ESP32 통신 확인의 핵심)
+        db.ref("smartfarm/heartbeat").on("value", (snapshot) => {
+            const hbVal = snapshot.val();
+            const now = Date.now();
 
-                if (!lastState) {
-                    addHistory(`[온라인] ${data.wifi_ssid} 연결됨 (${data.connected_time || nowTime})`);
-                    lastState = true;
-                }
-            } else {
-                // 오프라인 상태
-                ssidVal.innerText = "연결 안 됨";
-                timeVal.innerText = "🔴 끊긴 시각: " + nowTime;
-                wifiStatusText.innerText = "오프라인 (연결 끊김)";
-                wifiStatusText.style.color = "#dc3545";
-                blinkDot.classList.remove("active");
+            if (hbVal !== null && hbVal !== lastHeartbeatValue) {
+                // 하트비트 숫자가 변함 -> ESP32가 살아있음!
+                lastHeartbeatValue = hbVal;
+                lastHeartbeatTime = now;
 
-                if (lastState) {
-                    addHistory(`[오프라인] 연결 끊김 감지 (${nowTime})`);
-                    lastState = false;
+                if (!isOnline) {
+                    isOnline = true;
+                    setOnlineState();
                 }
             }
         });
 
-        // 이력 추가 함수
+        // 3. 타이머로 하트비트가 멈췄는지(4초 이상 갱신 안 되면) 실시간 체크
+        setInterval(() => {
+            const now = Date.now();
+            // 4초 동안 하트비트 숫자 변화가 없으면 통신 끊긴 것으로 판정
+            if (isOnline && (now - lastHeartbeatTime > 4000)) {
+                isOnline = false;
+                setOfflineState();
+            }
+        }, 1000);
+
+        function setOnlineState() {
+            const nowTime = new Date().toLocaleTimeString('ko-KR');
+            wifiStatusText.innerText = "온라인 (정상 작동)";
+            wifiStatusText.style.color = "#28a745";
+            blinkDot.classList.add("active");
+            timeVal.innerText = "🟢 연결된 시각: " + nowTime;
+
+            // 이력에 누적 추가 (최신 것이 위로)
+            addHistory(`[온라인 연결] SSID: ${currentSSIDName} (${nowTime})`);
+        }
+
+        function setOfflineState() {
+            const nowTime = new Date().toLocaleTimeString('ko-KR');
+            wifiStatusText.innerText = "오프라인 (연결 끊김)";
+            wifiStatusText.style.color = "#dc3545";
+            blinkDot.classList.remove("active");
+            timeVal.innerText = "🔴 끊긴 시각: " + nowTime;
+
+            // 이력에 누적 추가
+            addHistory(`[오프라인 끊김] 통신 중단됨 (${nowTime})`);
+        }
+
+        // 이력 누적 함수
         function addHistory(text) {
             if (historyList.length === 0) {
                 historyBox.innerHTML = ""; // 초기 안내 문구 제거
             }
-            historyList.unshift(text); // 최신 내역이 위로 오게 추가
-            
+            historyList.unshift(text); // 새 기록을 배열 맨 앞에 추가하여 누적
             historyBox.innerHTML = historyList.map(item => `<div class="history-item">${item}</div>`).join('');
         }
 
