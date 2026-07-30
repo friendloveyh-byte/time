@@ -37,7 +37,7 @@
 <body>
 
     <div class="card">
-        <h2>🌱 SmartFarm 대시보드</h2>
+        <h2 id="deptTitle">🌱 SmartFarm 대시보드</h2>
         <div id="liveClock" class="current-clock">현재 시각 로딩 중...</div>
         
         <div class="status-box">
@@ -76,6 +76,10 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
+        // 🔍 URL 주소창에서 부서 코드 가져오기 (기본값은 r_bojeon 또는 default)
+        const urlParams = new URLSearchParams(window.location.search);
+        const deptID = urlParams.get('dept') || 'r_bojeon'; 
+
         function updateClock() {
             const now = new Date();
             document.getElementById("liveClock").innerText = "⏰ " + now.toLocaleString('ko-KR');
@@ -98,9 +102,16 @@
         const viewerCountVal = document.getElementById("viewerCountVal");
         const historyBox = document.getElementById("historyBox");
         const historyListContent = document.getElementById("historyListContent");
+        const deptTitle = document.getElementById("deptTitle");
 
-        // 🔗 실시간 접속자 수 (Presence) 관리 로직
-        const myConnectionRef = db.ref("smartfarm/viewers").push();
+        // 🏢 구글 DB에서 한글 부서 이름(dept_name)을 가져와 타이틀에 반영
+        db.ref(`smartfarm/${deptID}/dept_name`).on("value", (snapshot) => {
+            const deptName = snapshot.val() || "SmartFarm";
+            deptTitle.innerText = `🌱 ${deptName} 대시보드`;
+        });
+
+        // 🔗 실시간 접속자 수 (Presence) 관리 로직 (부서별 분기)
+        const myConnectionRef = db.ref(`smartfarm/${deptID}/viewers`).push();
         const connectedRef = db.ref(".info/connected");
 
         connectedRef.on("value", (snap) => {
@@ -110,7 +121,7 @@
             }
         });
 
-        db.ref("smartfarm/viewers").on("value", (snapshot) => {
+        db.ref(`smartfarm/${deptID}/viewers`).on("value", (snapshot) => {
             const viewers = snapshot.val();
             if (viewers) {
                 const count = Object.keys(viewers).length;
@@ -120,18 +131,18 @@
             }
         });
 
-        // 1. 현재 SSID 실시간 동기화
-        db.ref("smartfarm/connection/wifi_ssid").on("value", (snapshot) => {
+        // 1. 현재 SSID 실시간 동기화 (부서별 경로 적용)
+        db.ref(`smartfarm/${deptID}/connection/wifi_ssid`).on("value", (snapshot) => {
             const currentSSIDName = snapshot.val() || "-";
             ssidVal.innerText = currentSSIDName;
         });
 
-        // 2. ESP32 하트비트 감지 및 상단 UI 반영 (생존 여부 확인)
+        // 2. ESP32 하트비트 감지 및 상단 UI 반영 (부서별 경로 적용)
         let lastHeartbeatValue = null;
         let lastHeartbeatTime = Date.now();
         let isOnline = false;
 
-        db.ref("smartfarm/heartbeat").on("value", (snapshot) => {
+        db.ref(`smartfarm/${deptID}/heartbeat`).on("value", (snapshot) => {
             const hbVal = snapshot.val();
             if (hbVal !== null) {
                 lastHeartbeatValue = hbVal;
@@ -164,8 +175,8 @@
             blinkDot.classList.remove("active");
         }
 
-        // //3. ESP32가 직접 기록해주는 히스토리 목록 불러오기 (오직 오프라인~복구 데이터만 처리)
-        db.ref("smartfarm/history").limitToLast(30).on("value", (snapshot) => {
+        // 3. ESP32가 직접 기록해주는 히스토리 목록 불러오기 (부서별 경로 적용)
+        db.ref(`smartfarm/${deptID}/history`).limitToLast(30).on("value", (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 let historyList = [];
@@ -173,6 +184,8 @@
                     const item = data[key];
                     if (item.offline && item.online) {
                         historyList.push(`⚠️ [끊김] ${item.offline} <br>&nbsp;&nbsp;&nbsp;&nbsp;➔ 🟢 [복구] ${item.online} (SSID: ${item.ssid || '-'})`);
+                    } else if (item.text) {
+                        historyList.push(item.text);
                     }
                 });
                 historyList.reverse();
@@ -184,7 +197,7 @@
 
         function clearHistory() {
             if (confirm("정말 모든 연결 이력을 삭제하시겠습니까?")) {
-                db.ref("smartfarm/history").remove().then(() => {
+                db.ref(`smartfarm/${deptID}/history`).remove().then(() => {
                     alert("이력이 모두 삭제되었습니다.");
                 }).catch((error) => {
                     alert("삭제 실패: " + error.message);
