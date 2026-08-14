@@ -6,13 +6,13 @@
     <title>업무차현황판</title>
     <style>
         body { font-family: 'Arial', sans-serif; background-color: #f4f6f9; text-align: center; margin-top: 40px; color: #333; }
-        .card { background: white; width: 380px; margin: 0 auto; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .card { background: white; width: 400px; margin: 0 auto; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         h2 { margin-bottom: 5px; font-size: 22px; }
-        
+
         .current-clock { font-size: 13px; color: #555; margin-bottom: 15px; font-weight: bold; }
 
         .status-box { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; font-weight: bold; margin: 15px 0; }
-        
+
         .blink-dot { width: 14px; height: 14px; background-color: #ccc; border-radius: 50%; display: inline-block; transition: background-color 0.3s; }
         .blink-dot.active { background-color: #28a745; animation: blink 1s infinite; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
@@ -23,7 +23,7 @@
 
         .history-btn { background-color: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; width: 100%; margin-top: 10px; transition: background 0.2s; }
         .history-btn:hover { background-color: #5a6268; }
-        
+
         .history-container { display: none; margin-top: 15px; text-align: left; background: #fff; border: 1px solid #ddd; border-radius: 8px; max-height: 220px; overflow-y: auto; padding: 10px; font-size: 12px; }
         .history-item { padding: 6px 0; border-bottom: 1px solid #eee; }
         .history-item:last-child { border-bottom: none; }
@@ -37,21 +37,26 @@
 <body>
 
     <div class="card">
-        <!-- 기본 타이틀을 [부서명] + [업무차현황판] 형태로 설정 -->
         <h2 id="deptTitle">🚗 업무차현황판</h2>
         <div id="liveClock" class="current-clock">현재 시각 로딩 중...</div>
-        
+
         <div class="status-box">
             <span id="blinkDot" class="blink-dot"></span>
             <span id="wifiStatusText">오프라인</span>
         </div>
 
+        <!-- 현재 차량 사용 상태 표시 추가 -->
         <div class="info-group">
-            <div class="info-label">현재 SSID</div>
-            <div id="ssidVal" class="info-value">-</div>
+            <div class="info-label">차량 이용 현황</div>
+            <div id="carStatusVal" class="info-value" style="color: #dc3545;">상태 확인 중...</div>
         </div>
 
-        <button class="history-btn" onclick="toggleHistory()">📂 연결/끊김 날짜·시간 이력 보기</button>
+        <div class="info-group">
+            <div class="info-label">기기 MAC 주소 & 부서</div>
+            <div id="macDeptVal" class="info-value" style="font-size: 11px;">-</div>
+        </div>
+
+        <button class="history-btn" onclick="toggleHistory()">📂 업무차 사용 이력 보기</button>
 
         <div id="historyBox" class="history-container">
             <div style="text-align: right; margin-bottom: 5px;">
@@ -72,9 +77,13 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // 🔍 URL 주소창에서 부서 코드 가져오기 (기본값은 r_bojeon)
+        // 🔍 URL 파라미터로 MAC 주소와 부서명을 받도록 설정
+        // 예시 접속 주소: index.html?mac=DC_B4_D9_26_7B_6C&dept=t
         const urlParams = new URLSearchParams(window.location.search);
-        const deptID = urlParams.get('dept') || 'r_bojeon'; 
+        const deviceMAC = urlParams.get('mac') || 'DC_B4_D9_26_7B_6C';  // 기본값 내 MAC
+        const deptID = urlParams.get('dept') || 't';                    // 기본값 부서명
+
+        document.getElementById("macDeptVal").innerText = `MAC: ${deviceMAC} | 부서: ${deptID}`;
 
         function updateClock() {
             const now = new Date();
@@ -94,36 +103,40 @@
 
         const blinkDot = document.getElementById("blinkDot");
         const wifiStatusText = document.getElementById("wifiStatusText");
-        const ssidVal = document.getElementById("ssidVal");
+        const carStatusVal = document.getElementById("carStatusVal");
         const historyBox = document.getElementById("historyBox");
         const historyListContent = document.getElementById("historyListContent");
         const deptTitle = document.getElementById("deptTitle");
 
-        // 🏢 구글 DB에서 부서 이름(dept_name)을 가져와서 "[부서명] 업무차현황판"으로 표시
-        db.ref(`smartfarm/${deptID}/dept_name`).on("value", (snapshot) => {
-            const deptName = snapshot.val() || "";
-            if (deptName) {
-                deptTitle.innerText = `🚗 ${deptName} 업무차현황판`;
+        // 🏢 1. 부서 이름 실시간 동기화 (경로: smartfarm/[MAC]/[부서]/dept_name)
+        db.ref(`smartfarm/${deviceMAC}/${deptID}/dept_name`).on("value", (snapshot) => {
+            const deptName = snapshot.val() || deptID;
+            deptTitle.innerText = `🚗 ${deptName} 업무차현황판`;
+        });
+
+        // 🚗 2. 차량 이용 상태 및 유저/장소 실시간 동기화 (경로: smartfarm/[MAC]/[부서]/status)
+        db.ref(`smartfarm/${deviceMAC}/${deptID}/status`).on("value", (snapshot) => {
+            const statusData = snapshot.val();
+            if (statusData) {
+                if (statusData.is_in_use) {
+                    carStatusVal.innerText = `사용 중 [${statusData.user}] ➔ ${statusData.place}`;
+                    carStatusVal.style.color = "#dc3545";
+                } else {
+                    carStatusVal.innerText = "이용 가능 (주차 중)";
+                    carStatusVal.style.color = "#28a745";
+                }
             } else {
-                deptTitle.innerText = `🚗 업무차현황판`;
+                carStatusVal.innerText = "정보 없음";
             }
         });
 
-        // 1. 현재 SSID 실시간 동기화 (부서별 경로 적용)
-        db.ref(`smartfarm/${deptID}/connection/wifi_ssid`).on("value", (snapshot) => {
-            const currentSSIDName = snapshot.val() || "-";
-            ssidVal.innerText = currentSSIDName;
-        });
-
-        // 2. ESP32 하트비트 감지 및 상단 UI 반영 (부서별 경로 적용)
-        let lastHeartbeatValue = null;
+        // ⚡ 3. 하트비트 감지 (온라인/오프라인 판별)
         let lastHeartbeatTime = Date.now();
         let isOnline = false;
 
-        db.ref(`smartfarm/${deptID}/heartbeat`).on("value", (snapshot) => {
+        db.ref(`smartfarm/${deviceMAC}/${deptID}/status/heartbeat`).on("value", (snapshot) => {
             const hbVal = snapshot.val();
             if (hbVal !== null) {
-                lastHeartbeatValue = hbVal;
                 lastHeartbeatTime = Date.now();
                 if (!isOnline) {
                     isOnline = true;
@@ -132,7 +145,7 @@
             }
         });
 
-        // 4초 이상 하트비트 신호가 없으면 오프라인으로 전환
+        // 4초 이상 하트비트가 없으면 오프라인
         setInterval(() => {
             const now = Date.now();
             if (isOnline && (now - lastHeartbeatTime > 4000)) {
@@ -153,20 +166,20 @@
             blinkDot.classList.remove("active");
         }
 
-        // 3. ESP32가 직접 기록해주는 히스토리 목록 불러오기 (부서별 경로 적용)
-        db.ref(`smartfarm/${deptID}/history`).limitToLast(30).on("value", (snapshot) => {
+        // 📜 4. 업무차 사용 이력 불러오기 (경로: smartfarm/[MAC]/[부서]/car_history)
+        db.ref(`smartfarm/${deviceMAC}/${deptID}/car_history`).limitToLast(30).on("value", (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 let historyList = [];
                 Object.keys(data).forEach(key => {
                     const item = data[key];
-                    if (item.offline && item.online) {
-                        historyList.push(`⚠️ [끊김] ${item.offline} <br>&nbsp;&nbsp;&nbsp;&nbsp;➔ 🟢 [복구] ${item.online} (SSID: ${item.ssid || '-'})`);
-                    } else if (item.text) {
-                        historyList.push(item.text);
+                    if (item.record) {
+                        // 줄바꿈 기호를 웹용 브라우저 줄바꿈(<br>)으로 변환
+                        let formattedRecord = item.record.replace(/\n/g, '<br>');
+                        historyList.push(`📋 ${formattedRecord}`);
                     }
                 });
-                historyList.reverse();
+                historyList.reverse(); // 최신순 정렬
                 historyListContent.innerHTML = historyList.map(item => `<div class="history-item">${item}</div>`).join('');
             } else {
                 historyListContent.innerHTML = '<div style="color: #888; text-align: center;">기록된 이력이 없습니다.</div>';
@@ -174,8 +187,8 @@
         });
 
         function clearHistory() {
-            if (confirm("정말 모든 연결 이력을 삭제하시겠습니까?")) {
-                db.ref(`smartfarm/${deptID}/history`).remove().then(() => {
+            if (confirm("정말 모든 업무차 사용 이력을 삭제하시겠습니까?")) {
+                db.ref(`smartfarm/${deviceMAC}/${deptID}/car_history`).remove().then(() => {
                     alert("이력이 모두 삭제되었습니다.");
                 }).catch((error) => {
                     alert("삭제 실패: " + error.message);
