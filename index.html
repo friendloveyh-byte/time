@@ -86,16 +86,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // 🔍 주소창 해시(#)에서 MAC 주소를 동적으로 읽어오기 (예: #DC_B4_D9_26_7B_80)
+        // 1. 주소창 해시(#)에서 MAC 주소 동적 추출
         let extractedMAC = window.location.hash.replace('#', '');
-        
-        // 해시값이 비어있다면 기본값 사용
         const deviceMAC = extractedMAC || 'DC_B4_D9_26_7B_6C';  
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const deptID = urlParams.get('dept') || 't';                    
-
-        document.getElementById("macDeptVal").innerText = `MAC: ${deviceMAC} | 부서: ${deptID}`;
 
         function updateClock() {
             const now = new Date();
@@ -113,114 +106,143 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        const blinkDot = document.getElementById("blinkDot");
-        const wifiStatusText = document.getElementById("wifiStatusText");
-        const carStatusVal = document.getElementById("carStatusVal");
-        const deptTitle = document.getElementById("deptTitle");
+        // 2. 파이어베이스에서 해당 MAC 아래에 등록된 실제 그룹명(부서 ID)을 자동으로 탐색
+        db.ref(`smartfarm/${deviceMAC}`).once("value", (snapshot) => {
+            const data = snapshot.val();
+            let deptID = 't'; // 기본값
 
-        // 🏢 1. 부서 이름 동기화
-        db.ref(`smartfarm/${deviceMAC}/${deptID}/status/dept_name`).on("value", (snapshot) => {
-            const deptName = snapshot.val() || deptID;
-            deptTitle.innerText = `🚗 ${deptName} 업무차현황판`;
+            if (data) {
+                const keys = Object.keys(data);
+                if (keys.length > 0) {
+                    deptID = keys[0]; // 아두이노가 설정한 실제 그룹명 자동 채택
+                }
+            }
+
+            initDashboard(deviceMAC, deptID);
         });
 
-        // 🚗 2. 차량 이용 상태 동기화
-        db.ref(`smartfarm/${deviceMAC}/${deptID}/status`).on("value", (snapshot) => {
-            const statusData = snapshot.val();
-            if (statusData) {
-                if (statusData.is_in_use) {
-                    carStatusVal.innerText = `사용 중 [${statusData.user}] ➔ ${statusData.place}`;
-                    carStatusVal.style.color = "#dc3545";
+        function initDashboard(deviceMAC, deptID) {
+            document.getElementById("macDeptVal").innerText = `MAC: ${deviceMAC} | 부서: ${deptID}`;
+
+            const blinkDot = document.getElementById("blinkDot");
+            const wifiStatusText = document.getElementById("wifiStatusText");
+            const carStatusVal = document.getElementById("carStatusVal");
+            const deptTitle = document.getElementById("deptTitle");
+
+            // 🏢 부서 이름 실시간 동기화
+            db.ref(`smartfarm/${deviceMAC}/${deptID}/status/dept_name`).on("value", (snapshot) => {
+                const deptName = snapshot.val() || deptID;
+                deptTitle.innerText = `🚗 ${deptName} 업무차현황판`;
+            });
+
+            // 🚗 차량 이용 상태 동기화
+            db.ref(`smartfarm/${deviceMAC}/${deptID}/status`).on("value", (snapshot) => {
+                const statusData = snapshot.val();
+                if (statusData) {
+                    if (statusData.is_in_use) {
+                        carStatusVal.innerText = `사용 중 [${statusData.user}] ➔ ${statusData.place}`;
+                        carStatusVal.style.color = "#dc3545";
+                    } else {
+                        carStatusVal.innerText = "이용 가능 (주차 중)";
+                        carStatusVal.style.color = "#28a745";
+                    }
                 } else {
-                    carStatusVal.innerText = "이용 가능 (주차 중)";
-                    carStatusVal.style.color = "#28a745";
+                    carStatusVal.innerText = "정보 없음";
                 }
-            } else {
-                carStatusVal.innerText = "정보 없음";
-            }
-        });
+            });
 
-        // ⚡ 3. 하트비트 감지 (온라인/오프라인)
-        let lastHeartbeatTime = Date.now();
-        let isOnline = false;
+            // ⚡ 하트비트 감지 (온라인/오프라인)
+            let lastHeartbeatTime = Date.now();
+            let isOnline = false;
 
-        db.ref(`smartfarm/${deviceMAC}/${deptID}/status/heartbeat`).on("value", (snapshot) => {
-            const hbVal = snapshot.val();
-            if (hbVal !== null) {
-                lastHeartbeatTime = Date.now();
-                if (!isOnline) {
-                    isOnline = true;
-                    setOnlineUI();
+            db.ref(`smartfarm/${deviceMAC}/${deptID}/status/heartbeat`).on("value", (snapshot) => {
+                const hbVal = snapshot.val();
+                if (hbVal !== null) {
+                    lastHeartbeatTime = Date.now();
+                    if (!isOnline) {
+                        isOnline = true;
+                        setOnlineUI();
+                    }
                 }
-            }
-        });
+            });
 
-        setInterval(() => {
-            const now = Date.now();
-            if (isOnline && (now - lastHeartbeatTime > 4000)) {
-                isOnline = false;
-                setOfflineUI();
-            }
-        }, 1000);
+            setInterval(() => {
+                const now = Date.now();
+                if (isOnline && (now - lastHeartbeatTime > 4000)) {
+                    isOnline = false;
+                    setOfflineUI();
+                }
+            }, 1000);
 
-        function setOnlineUI() {
-            wifiStatusText.innerText = "온라인 (정상 작동)";
-            wifiStatusText.style.color = "#28a745";
-            blinkDot.classList.add("active");
+            function setOnlineUI() {
+                wifiStatusText.innerText = "온라인 (정상 작동)";
+                wifiStatusText.style.color = "#28a745";
+                blinkDot.classList.add("active");
+            }
+
+            function setOfflineUI() {
+                wifiStatusText.innerText = "오프라인 (응답 없음)";
+                wifiStatusText.style.color = "#dc3545";
+                blinkDot.classList.remove("active");
+            }
+
+            // 📋 업무차 사용 이력 불러오기
+            db.ref(`smartfarm/${deviceMAC}/${deptID}/car_history`).limitToLast(30).on("value", (snapshot) => {
+                const data = snapshot.val();
+                const contentDiv = document.getElementById("carHistoryContent");
+                if (data) {
+                    let historyList = [];
+                    Object.keys(data).forEach(key => {
+                        const item = data[key];
+                        if (item.record) {
+                            let formattedRecord = item.record.replace(/\n/g, '<br>');
+                            historyList.push(`📋 ${formattedRecord}`);
+                        }
+                    });
+                    historyList.reverse();
+                    contentDiv.innerHTML = historyList.map(item => `<div class="history-item">${item}</div>`).join('');
+                } else {
+                    contentDiv.innerHTML = '<div style="color: #888; text-align: center;">기록된 이력이 없습니다.</div>';
+                }
+            });
+
+            // 🌐 인터넷 끊김/복구 이력 불러오기
+            db.ref(`smartfarm/${deviceMAC}/${deptID}/network_history`).limitToLast(30).on("value", (snapshot) => {
+                const data = snapshot.val();
+                const contentDiv = document.getElementById("netHistoryContent");
+                if (data) {
+                    let netList = [];
+                    Object.keys(data).forEach(key => {
+                        const item = data[key];
+                        if (item.offline && item.online) {
+                            netList.push(`⚠️ [끊김] ${item.offline}<br>&nbsp;&nbsp;&nbsp;&nbsp;➔ 🟢 [복구] ${item.online} (SSID: ${item.ssid || '-'})`);
+                        }
+                    });
+                    netList.reverse();
+                    contentDiv.innerHTML = netList.map(item => `<div class="history-item">${item}</div>`).join('');
+                } else {
+                    contentDiv.innerHTML = '<div style="color: #888; text-align: center;">기록된 이력이 없습니다.</div>';
+                }
+            });
         }
-
-        function setOfflineUI() {
-            wifiStatusText.innerText = "오프라인 (응답 없음)";
-            wifiStatusText.style.color = "#dc3545";
-            blinkDot.classList.remove("active");
-        }
-
-        // 📋 4. 업무차 사용 이력 불러오기 (car_history)
-        db.ref(`smartfarm/${deviceMAC}/${deptID}/car_history`).limitToLast(30).on("value", (snapshot) => {
-            const data = snapshot.val();
-            const contentDiv = document.getElementById("carHistoryContent");
-            if (data) {
-                let historyList = [];
-                Object.keys(data).forEach(key => {
-                    const item = data[key];
-                    if (item.record) {
-                        let formattedRecord = item.record.replace(/\n/g, '<br>');
-                        historyList.push(`📋 ${formattedRecord}`);
-                    }
-                });
-                historyList.reverse();
-                contentDiv.innerHTML = historyList.map(item => `<div class="history-item">${item}</div>`).join('');
-            } else {
-                contentDiv.innerHTML = '<div style="color: #888; text-align: center;">기록된 이력이 없습니다.</div>';
-            }
-        });
-
-        // 🌐 5. 인터넷 끊김/복구 이력 불러오기 (network_history)
-        db.ref(`smartfarm/${deviceMAC}/${deptID}/network_history`).limitToLast(30).on("value", (snapshot) => {
-            const data = snapshot.val();
-            const contentDiv = document.getElementById("netHistoryContent");
-            if (data) {
-                let netList = [];
-                Object.keys(data).forEach(key => {
-                    const item = data[key];
-                    if (item.offline && item.online) {
-                        netList.push(`⚠️ [끊김] ${item.offline}<br>&nbsp;&nbsp;&nbsp;&nbsp;➔ 🟢 [복구] ${item.online} (SSID: ${item.ssid || '-'})`);
-                    }
-                });
-                netList.reverse();
-                contentDiv.innerHTML = netList.map(item => `<div class="history-item">${item}</div>`).join('');
-            } else {
-                contentDiv.innerHTML = '<div style="color: #888; text-align: center;">기록된 이력이 없습니다.</div>';
-            }
-        });
 
         function clearHistory(nodeName) {
             const nameStr = nodeName === 'car_history' ? '차량 사용' : '네트워크';
             if (confirm(`정말 모든 ${nameStr} 이력을 삭제하시겠습니까?`)) {
-                db.ref(`smartfarm/${deviceMAC}/${deptID}/${nodeName}`).remove().then(() => {
-                    alert("이력이 모두 삭제되었습니다.");
-                }).catch((error) => {
-                    alert("삭제 실패: " + error.message);
+                // 현재 인식된 MAC과 부서명을 기반으로 삭제 수행
+                let extractedMAC = window.location.hash.replace('#', '') || 'DC_B4_D9_26_7B_6C';
+                db.ref(`smartfarm/${extractedMAC}`).once("value", (snapshot) => {
+                    const data = snapshot.val();
+                    let deptID = 't';
+                    if (data) {
+                        const keys = Object.keys(data);
+                        if (keys.length > 0) deptID = keys[0];
+                    }
+                    db.ref(`smartfarm/${extractedMAC}/${deptID}/${nodeName}`).remove().then(() => {
+                        alert("이력이 모두 삭제되었습니다.");
+                    }).catch((error) => {
+                        alert("삭제 실패: " + error.message);
+                    });
                 });
             }
         }
