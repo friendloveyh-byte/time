@@ -116,6 +116,7 @@
             firebase.initializeApp(firebaseConfig);
             const db = firebase.database();
 
+            // 부서명 검사 없이 해당 MAC 노드 존재 여부만 체크 후 대시보드 초기화
             db.ref(`smartfarm/${deviceMAC}`).once("value", (snapshot) => {
                 const data = snapshot.val();
                 
@@ -127,13 +128,7 @@
                     return;
                 }
 
-                let deptID = 't'; 
-                const keys = Object.keys(data);
-                if (keys.length > 0) {
-                    deptID = keys[0]; 
-                }
-
-                initDashboard(deviceMAC, deptID);
+                initDashboard(deviceMAC);
             });
         }
 
@@ -148,23 +143,18 @@
         const fileTimeEl = document.getElementById("fileUpdateTime");
         if (fileTimeEl) fileTimeEl.innerText = document.lastModified;
 
-        function initDashboard(deviceMAC, deptID) {
+        function initDashboard(deviceMAC) {
             const macDeptEl = document.getElementById("macDeptVal");
-            if (macDeptEl) macDeptEl.innerText = `MAC: ${deviceMAC} | 부서: ${deptID}`;
+            if (macDeptEl) macDeptEl.innerText = `MAC: ${deviceMAC}`;
 
             const blinkDot = document.getElementById("blinkDot");
             const wifiStatusText = document.getElementById("wifiStatusText");
             const carStatusVal = document.getElementById("carStatusVal");
-            const deptTitle = document.getElementById("deptTitle");
 
             const db = firebase.database();
 
-            db.ref(`smartfarm/${deviceMAC}/${deptID}/status/dept_name`).on("value", (snapshot) => {
-                const deptName = snapshot.val() || deptID;
-                if (deptTitle) deptTitle.innerText = `🚗 ${deptName} 업무차현황판`;
-            });
-
-            db.ref(`smartfarm/${deviceMAC}/${deptID}/status`).on("value", (snapshot) => {
+            // 차량 상태 모니터링 (smartfarm/{MAC}/status)
+            db.ref(`smartfarm/${deviceMAC}/status`).on("value", (snapshot) => {
                 const statusData = snapshot.val();
                 if (statusData && carStatusVal) {
                     if (statusData.is_in_use) {
@@ -182,7 +172,7 @@
             let lastHeartbeatTime = Date.now();
             let isOnline = false;
 
-            db.ref(`smartfarm/${deviceMAC}/${deptID}/status/heartbeat`).on("value", (snapshot) => {
+            db.ref(`smartfarm/${deviceMAC}/status/heartbeat`).on("value", (snapshot) => {
                 const hbVal = snapshot.val();
                 if (hbVal !== null) {
                     lastHeartbeatTime = Date.now();
@@ -217,18 +207,21 @@
                 if (blinkDot) blinkDot.classList.remove("active");
             }
 
-            db.ref(`smartfarm/${deviceMAC}/${deptID}/car_history`).limitToLast(30).on("value", (snapshot) => {
+            // 차량 이력 불러오기 및 중복 제거 (smartfarm/{MAC}/car_history)
+            db.ref(`smartfarm/${deviceMAC}/car_history`).limitToLast(50).on("value", (snapshot) => {
                 const data = snapshot.val();
                 const contentDiv = document.getElementById("carHistoryContent");
                 if (data && contentDiv) {
-                    let historyList = [];
+                    let historyMap = new Map();
                     Object.keys(data).forEach(key => {
                         const item = data[key];
                         if (item.record) {
                             let formattedRecord = item.record.replace(/\n/g, '<br>');
-                            historyList.push(`📋 ${formattedRecord}`);
+                            let cleanText = item.record.trim();
+                            historyMap.set(cleanText, `📋 ${formattedRecord}`);
                         }
                     });
+                    let historyList = Array.from(historyMap.values());
                     historyList.reverse();
                     contentDiv.innerHTML = historyList.map(item => `<div class="history-item">${item}</div>`).join('');
                 } else if (contentDiv) {
@@ -236,17 +229,21 @@
                 }
             });
 
-            db.ref(`smartfarm/${deviceMAC}/${deptID}/network_history`).limitToLast(30).on("value", (snapshot) => {
+            // 네트워크 이력 불러오기 및 중복 제거 (smartfarm/{MAC}/network_history)
+            db.ref(`smartfarm/${deviceMAC}/network_history`).limitToLast(50).on("value", (snapshot) => {
                 const data = snapshot.val();
                 const contentDiv = document.getElementById("netHistoryContent");
                 if (data && contentDiv) {
-                    let netList = [];
+                    let netMap = new Map();
                     Object.keys(data).forEach(key => {
                         const item = data[key];
                         if (item.offline && item.online) {
-                            netList.push(`⚠️ [끊김] ${item.offline}<br>&nbsp;&nbsp;&nbsp;&nbsp;➔ 🟢 [복구] ${item.online} (SSID: ${item.ssid || '-'})`);
+                            let netText = `⚠️ [끊김] ${item.offline}<br>&nbsp;&nbsp;&nbsp;&nbsp;➔ 🟢 [복구] ${item.online} (SSID: ${item.ssid || '-'})`;
+                            let uniqueKey = `${item.offline}_${item.online}`;
+                            netMap.set(uniqueKey, netText);
                         }
                     });
+                    let netList = Array.from(netMap.values());
                     netList.reverse();
                     contentDiv.innerHTML = netList.map(item => `<div class="history-item">${item}</div>`).join('');
                 } else if (contentDiv) {
@@ -260,18 +257,10 @@
             if (confirm(`정말 모든 ${nameStr} 이력을 삭제하시겠습니까?`)) {
                 let currentMAC = getTargetMAC();
                 const db = firebase.database();
-                db.ref(`smartfarm/${currentMAC}`).once("value", (snapshot) => {
-                    const data = snapshot.val();
-                    let deptID = 't';
-                    if (data) {
-                        const keys = Object.keys(data);
-                        if (keys.length > 0) deptID = keys[0];
-                    }
-                    db.ref(`smartfarm/${currentMAC}/${deptID}/${nodeName}`).remove().then(() => {
-                        alert("이력이 모두 삭제되었습니다.");
-                    }).catch((error) => {
-                        alert("삭제 실패: " + error.message);
-                    });
+                db.ref(`smartfarm/${currentMAC}/${nodeName}`).remove().then(() => {
+                    alert("이력이 모두 삭제되었습니다.");
+                }).catch((error) => {
+                    alert("삭제 실패: " + error.message);
                 });
             }
         }
